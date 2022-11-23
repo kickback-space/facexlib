@@ -8,7 +8,7 @@ class HopeNet(nn.Module):
     # Predicts Euler angles by binning and regression with the expected value
     def __init__(self, block, layers, num_bins):
         super(HopeNet, self).__init__()
-        if block == 'resnet':
+        if block == "resnet":
             block = torchvision.models.resnet.Bottleneck
         self.inplanes = 64
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -30,7 +30,13 @@ class HopeNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 

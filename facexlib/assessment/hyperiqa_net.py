@@ -19,7 +19,7 @@ class HyperIQA(nn.Module):
         for param in target_net.parameters():
             param.requires_grad = False
         # predict the face quality
-        pred = target_net(net_params['target_in_vec'])
+        pred = target_net(net_params["target_in_vec"])
         return pred
 
 
@@ -36,8 +36,17 @@ class HyperNet(nn.Module):
         For size match, input args must satisfy: 'target_fc(i)_size * target_fc(i+1)_size' is divisible by 'feature_size ^ 2'. # noqa E501
     """
 
-    def __init__(self, lda_out_channels, hyper_in_channels, target_in_size, target_fc1_size, target_fc2_size,
-                 target_fc3_size, target_fc4_size, feature_size):
+    def __init__(
+        self,
+        lda_out_channels,
+        hyper_in_channels,
+        target_in_size,
+        target_fc1_size,
+        target_fc2_size,
+        target_fc3_size,
+        target_fc4_size,
+        feature_size,
+    ):
         super(HyperNet, self).__init__()
 
         self.hyperInChn = hyper_in_channels
@@ -54,21 +63,45 @@ class HyperNet(nn.Module):
 
         # Conv layers for resnet output features
         self.conv1 = nn.Sequential(
-            nn.Conv2d(2048, 1024, 1, padding=(0, 0)), nn.ReLU(inplace=True), nn.Conv2d(1024, 512, 1, padding=(0, 0)),
-            nn.ReLU(inplace=True), nn.Conv2d(512, self.hyperInChn, 1, padding=(0, 0)), nn.ReLU(inplace=True))
+            nn.Conv2d(2048, 1024, 1, padding=(0, 0)),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(1024, 512, 1, padding=(0, 0)),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, self.hyperInChn, 1, padding=(0, 0)),
+            nn.ReLU(inplace=True),
+        )
 
         # Hyper network part, conv for generating target fc weights, fc for generating target fc biases
         self.fc1w_conv = nn.Conv2d(
-            self.hyperInChn, int(self.target_in_size * self.f1 / feature_size**2), 3, padding=(1, 1))
+            self.hyperInChn,
+            int(self.target_in_size * self.f1 / feature_size**2),
+            3,
+            padding=(1, 1),
+        )
         self.fc1b_fc = nn.Linear(self.hyperInChn, self.f1)
 
-        self.fc2w_conv = nn.Conv2d(self.hyperInChn, int(self.f1 * self.f2 / feature_size**2), 3, padding=(1, 1))
+        self.fc2w_conv = nn.Conv2d(
+            self.hyperInChn,
+            int(self.f1 * self.f2 / feature_size**2),
+            3,
+            padding=(1, 1),
+        )
         self.fc2b_fc = nn.Linear(self.hyperInChn, self.f2)
 
-        self.fc3w_conv = nn.Conv2d(self.hyperInChn, int(self.f2 * self.f3 / feature_size**2), 3, padding=(1, 1))
+        self.fc3w_conv = nn.Conv2d(
+            self.hyperInChn,
+            int(self.f2 * self.f3 / feature_size**2),
+            3,
+            padding=(1, 1),
+        )
         self.fc3b_fc = nn.Linear(self.hyperInChn, self.f3)
 
-        self.fc4w_conv = nn.Conv2d(self.hyperInChn, int(self.f3 * self.f4 / feature_size**2), 3, padding=(1, 1))
+        self.fc4w_conv = nn.Conv2d(
+            self.hyperInChn,
+            int(self.f3 * self.f4 / feature_size**2),
+            3,
+            padding=(1, 1),
+        )
         self.fc4b_fc = nn.Linear(self.hyperInChn, self.f4)
 
         self.fc5w_fc = nn.Linear(self.hyperInChn, self.f4)
@@ -80,13 +113,17 @@ class HyperNet(nn.Module):
         res_out = self.res(img)
 
         # input vector for target net
-        target_in_vec = res_out['target_in_vec'].view(-1, self.target_in_size, 1, 1)
+        target_in_vec = res_out["target_in_vec"].view(-1, self.target_in_size, 1, 1)
 
         # input features for hyper net
-        hyper_in_feat = self.conv1(res_out['hyper_in_feat']).view(-1, self.hyperInChn, feature_size, feature_size)
+        hyper_in_feat = self.conv1(res_out["hyper_in_feat"]).view(
+            -1, self.hyperInChn, feature_size, feature_size
+        )
 
         # generating target net weights & biases
-        target_fc1w = self.fc1w_conv(hyper_in_feat).view(-1, self.f1, self.target_in_size, 1, 1)
+        target_fc1w = self.fc1w_conv(hyper_in_feat).view(
+            -1, self.f1, self.target_in_size, 1, 1
+        )
         target_fc1b = self.fc1b_fc(self.pool(hyper_in_feat).squeeze()).view(-1, self.f1)
 
         target_fc2w = self.fc2w_conv(hyper_in_feat).view(-1, self.f2, self.f1, 1, 1)
@@ -98,21 +135,23 @@ class HyperNet(nn.Module):
         target_fc4w = self.fc4w_conv(hyper_in_feat).view(-1, self.f4, self.f3, 1, 1)
         target_fc4b = self.fc4b_fc(self.pool(hyper_in_feat).squeeze()).view(-1, self.f4)
 
-        target_fc5w = self.fc5w_fc(self.pool(hyper_in_feat).squeeze()).view(-1, 1, self.f4, 1, 1)
+        target_fc5w = self.fc5w_fc(self.pool(hyper_in_feat).squeeze()).view(
+            -1, 1, self.f4, 1, 1
+        )
         target_fc5b = self.fc5b_fc(self.pool(hyper_in_feat).squeeze()).view(-1, 1)
 
         out = {}
-        out['target_in_vec'] = target_in_vec
-        out['target_fc1w'] = target_fc1w
-        out['target_fc1b'] = target_fc1b
-        out['target_fc2w'] = target_fc2w
-        out['target_fc2b'] = target_fc2b
-        out['target_fc3w'] = target_fc3w
-        out['target_fc3b'] = target_fc3b
-        out['target_fc4w'] = target_fc4w
-        out['target_fc4b'] = target_fc4b
-        out['target_fc5w'] = target_fc5w
-        out['target_fc5b'] = target_fc5b
+        out["target_in_vec"] = target_in_vec
+        out["target_fc1w"] = target_fc1w
+        out["target_fc1b"] = target_fc1b
+        out["target_fc2w"] = target_fc2w
+        out["target_fc2b"] = target_fc2b
+        out["target_fc3w"] = target_fc3w
+        out["target_fc3b"] = target_fc3b
+        out["target_fc4w"] = target_fc4w
+        out["target_fc4b"] = target_fc4b
+        out["target_fc5w"] = target_fc5w
+        out["target_fc5b"] = target_fc5b
 
         return out
 
@@ -124,7 +163,9 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
@@ -156,7 +197,6 @@ class Bottleneck(nn.Module):
 
 
 class ResNetBackbone(nn.Module):
-
     def __init__(self, lda_out_channels, in_chn, block, layers, num_classes=1000):
         super(ResNetBackbone, self).__init__()
         self.inplanes = 64
@@ -195,7 +235,13 @@ class ResNetBackbone(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -226,8 +272,8 @@ class ResNetBackbone(nn.Module):
         vec = torch.cat((lda_1, lda_2, lda_3, lda_4), 1)
 
         out = {}
-        out['hyper_in_feat'] = x
-        out['target_in_vec'] = vec
+        out["hyper_in_feat"] = x
+        out["target_in_vec"] = vec
 
         return out
 
@@ -246,23 +292,23 @@ class TargetNet(nn.Module):
     def __init__(self, paras):
         super(TargetNet, self).__init__()
         self.l1 = nn.Sequential(
-            TargetFC(paras['target_fc1w'], paras['target_fc1b']),
+            TargetFC(paras["target_fc1w"], paras["target_fc1b"]),
             nn.Sigmoid(),
         )
         self.l2 = nn.Sequential(
-            TargetFC(paras['target_fc2w'], paras['target_fc2b']),
+            TargetFC(paras["target_fc2w"], paras["target_fc2b"]),
             nn.Sigmoid(),
         )
 
         self.l3 = nn.Sequential(
-            TargetFC(paras['target_fc3w'], paras['target_fc3b']),
+            TargetFC(paras["target_fc3w"], paras["target_fc3b"]),
             nn.Sigmoid(),
         )
 
         self.l4 = nn.Sequential(
-            TargetFC(paras['target_fc4w'], paras['target_fc4b']),
+            TargetFC(paras["target_fc4w"], paras["target_fc4b"]),
             nn.Sigmoid(),
-            TargetFC(paras['target_fc5w'], paras['target_fc5b']),
+            TargetFC(paras["target_fc5w"], paras["target_fc5b"]),
         )
 
     def forward(self, x):
@@ -289,10 +335,20 @@ class TargetFC(nn.Module):
 
     def forward(self, input_):
 
-        input_re = input_.view(-1, input_.shape[0] * input_.shape[1], input_.shape[2], input_.shape[3])
-        weight_re = self.weight.view(self.weight.shape[0] * self.weight.shape[1], self.weight.shape[2],
-                                     self.weight.shape[3], self.weight.shape[4])
+        input_re = input_.view(
+            -1, input_.shape[0] * input_.shape[1], input_.shape[2], input_.shape[3]
+        )
+        weight_re = self.weight.view(
+            self.weight.shape[0] * self.weight.shape[1],
+            self.weight.shape[2],
+            self.weight.shape[3],
+            self.weight.shape[4],
+        )
         bias_re = self.bias.view(self.bias.shape[0] * self.bias.shape[1])
-        out = F.conv2d(input=input_re, weight=weight_re, bias=bias_re, groups=self.weight.shape[0])
+        out = F.conv2d(
+            input=input_re, weight=weight_re, bias=bias_re, groups=self.weight.shape[0]
+        )
 
-        return out.view(input_.shape[0], self.weight.shape[1], input_.shape[2], input_.shape[3])
+        return out.view(
+            input_.shape[0], self.weight.shape[1], input_.shape[2], input_.shape[3]
+        )

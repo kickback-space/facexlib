@@ -4,7 +4,7 @@ import numpy as np
 def load_txt_file(file_path):
     """Load data or string from txt file."""
 
-    with open(file_path, 'r') as cfile:
+    with open(file_path, "r") as cfile:
         content = cfile.readlines()
     cfile.close()
     content = [x.strip() for x in content]
@@ -26,14 +26,14 @@ def anno_parser(anno_path, num_pts, line_offset=0):
     data, _ = load_txt_file(anno_path)
     n_points = num_pts
     # read points coordinate.
-    pts = np.zeros((n_points, 2), dtype='float32')
+    pts = np.zeros((n_points, 2), dtype="float32")
     for point_index in range(n_points):
         try:
-            pts_list = data[point_index + line_offset].split(',')
+            pts_list = data[point_index + line_offset].split(",")
             pts[point_index, 0] = float(pts_list[0])
             pts[point_index, 1] = float(pts_list[1])
         except ValueError:
-            print(f'Error in loading points in {anno_path}')
+            print(f"Error in loading points in {anno_path}")
     return pts
 
 
@@ -45,7 +45,7 @@ def landmark_98_to_68(landmark_98):
         landmark_68(numpy array): Polar coordinates of 98 landmarks, (68, 2)
     """
 
-    landmark_68 = np.zeros((68, 2), dtype='float32')
+    landmark_68 = np.zeros((68, 2), dtype="float32")
     # cheek
     for i in range(0, 33):
         if i % 2 == 0:
@@ -72,11 +72,15 @@ def landmark_98_to_68(landmark_98):
     LUT_landmark_68_left_eye = [36, 37, 38, 39, 40, 41]
     LUT_landmark_98_left_eye = [60, 61, 63, 64, 65, 67]
     for idx, landmark_98_index in enumerate(LUT_landmark_98_left_eye):
-        landmark_68[LUT_landmark_68_left_eye[idx], :] = landmark_98[landmark_98_index, :]
+        landmark_68[LUT_landmark_68_left_eye[idx], :] = landmark_98[
+            landmark_98_index, :
+        ]
     # right eye
     LUT_landmark_68_right_eye = [42, 43, 44, 45, 46, 47]
     LUT_landmark_98_right_eye = [68, 69, 71, 72, 73, 75]
     for idx, landmark_98_index in enumerate(LUT_landmark_98_right_eye):
-        landmark_68[LUT_landmark_68_right_eye[idx], :] = landmark_98[landmark_98_index, :]
+        landmark_68[LUT_landmark_68_right_eye[idx], :] = landmark_98[
+            landmark_98_index, :
+        ]
 
     return landmark_68

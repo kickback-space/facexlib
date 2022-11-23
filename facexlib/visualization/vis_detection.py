@@ -14,7 +14,14 @@ def visualize_detection(img, bboxes_and_landmarks, save_path=None, to_bgr=False)
 
     for b in bboxes_and_landmarks:
         # confidence
-        cv2.putText(img, f'{b[4]:.4f}', (int(b[0]), int(b[1] + 12)), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+        cv2.putText(
+            img,
+            f"{b[4]:.4f}",
+            (int(b[0]), int(b[1] + 12)),
+            cv2.FONT_HERSHEY_DUPLEX,
+            0.5,
+            (255, 255, 255),
+        )
         # bounding boxes
         b = list(map(int, b))
         cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)

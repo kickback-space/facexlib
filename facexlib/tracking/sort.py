@@ -47,8 +47,13 @@ class SORT(object):
             self.trackers.pop(t)
 
         if dets != []:
-            matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(  # noqa: E501
-                dets, trks)
+            (
+                matched,
+                unmatched_dets,
+                unmatched_trks,
+            ) = associate_detections_to_trackers(  # noqa: E501
+                dets, trks
+            )
 
             # update matched trackers with assigned detections
             for t, trk in enumerate(self.trackers):
@@ -61,7 +66,7 @@ class SORT(object):
             for i in unmatched_dets:
                 trk = KalmanBoxTracker(dets[i, :])
                 trk.face_attributes.append(additional_attr[i])
-                print(f'New tracker: {trk.id + 1}.')
+                print(f"New tracker: {trk.id + 1}.")
                 self.trackers.append(trk)
 
         i = len(self.trackers)
@@ -74,17 +79,24 @@ class SORT(object):
             # 1) time_since_update < 1: detected
             # 2) i) hit_streak >= min_hits: 最小的连续命中
             #    ii) frame_count <= min_hits: 最开始的几帧
-            if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
-                ret.append(np.concatenate((d, [trk.id + 1])).reshape(1, -1))  # +1 as MOT benchmark requires positive
+            if (trk.time_since_update < 1) and (
+                trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits
+            ):
+                ret.append(
+                    np.concatenate((d, [trk.id + 1])).reshape(1, -1)
+                )  # +1 as MOT benchmark requires positive
             i -= 1
 
             # remove dead tracklet
             # 1) time_since_update >= max_age: 多久没有更新了
             # 2) predict_num: 连续预测的帧数
             # 3) out of image size
-            if (trk.time_since_update >= self.max_age) or (trk.predict_num >= detect_interval) or (
-                    d[2] < 0 or d[3] < 0 or d[0] > img_size[1] or d[1] > img_size[0]):
-                print(f'Remove tracker: {trk.id + 1}')
+            if (
+                (trk.time_since_update >= self.max_age)
+                or (trk.predict_num >= detect_interval)
+                or (d[2] < 0 or d[3] < 0 or d[0] > img_size[1] or d[1] > img_size[0])
+            ):
+                print(f"Remove tracker: {trk.id + 1}")
                 self.trackers.pop(i)
         if len(ret) > 0:
             return np.concatenate(ret)

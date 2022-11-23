@@ -12,7 +12,7 @@ def main(args):
     modnet = init_matting_model()
 
     # read image
-    img = cv2.imread(args.img_path) / 255.
+    img = cv2.imread(args.img_path) / 255.0
     # unify image channels to 3
     if len(img.shape) == 2:
         img = img[:, :, None]
@@ -40,26 +40,26 @@ def main(args):
         im_rw = im_w
     im_rw = im_rw - im_rw % 32
     im_rh = im_rh - im_rh % 32
-    img_t = F.interpolate(img_t, size=(im_rh, im_rw), mode='area')
+    img_t = F.interpolate(img_t, size=(im_rh, im_rw), mode="area")
 
     # inference
     _, _, matte = modnet(img_t, True)
 
     # resize and save matte
-    matte = F.interpolate(matte, size=(im_h, im_w), mode='area')
+    matte = F.interpolate(matte, size=(im_h, im_w), mode="area")
     matte = matte[0][0].data.cpu().numpy()
-    cv2.imwrite(args.save_path, (matte * 255).astype('uint8'))
+    cv2.imwrite(args.save_path, (matte * 255).astype("uint8"))
 
     # get foreground
     matte = matte[:, :, None]
     foreground = img * matte + np.full(img.shape, 1) * (1 - matte)
-    cv2.imwrite(args.save_path.replace('.png', '_fg.png'), foreground * 255)
+    cv2.imwrite(args.save_path.replace(".png", "_fg.png"), foreground * 255)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path', type=str, default='assets/test.jpg')
-    parser.add_argument('--save_path', type=str, default='test_matting.png')
+    parser.add_argument("--img_path", type=str, default="assets/test.jpg")
+    parser.add_argument("--save_path", type=str, default="test_matting.png")
     args = parser.parse_args()
 
     main(args)

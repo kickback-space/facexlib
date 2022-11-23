@@ -32,7 +32,7 @@ def draw_axis(img, yaw, pitch, roll, tdx=None, tdy=None, size=100):
     return img
 
 
-def draw_pose_cube(img, yaw, pitch, roll, tdx=None, tdy=None, size=150.):
+def draw_pose_cube(img, yaw, pitch, roll, tdx=None, tdy=None, size=150.0):
     """draw head pose cube.
     Where (tdx, tdy) is the translation of the face.
     For pose we have [pitch yaw roll tdx tdy tdz scale_factor]
@@ -59,21 +59,72 @@ def draw_pose_cube(img, yaw, pitch, roll, tdx=None, tdy=None, size=150.):
     # Draw base in red
     cv2.line(img, (int(face_x), int(face_y)), (int(x1), int(y1)), (0, 0, 255), 3)
     cv2.line(img, (int(face_x), int(face_y)), (int(x2), int(y2)), (0, 0, 255), 3)
-    cv2.line(img, (int(x2), int(y2)), (int(x2 + x1 - face_x), int(y2 + y1 - face_y)), (0, 0, 255), 3)
-    cv2.line(img, (int(x1), int(y1)), (int(x1 + x2 - face_x), int(y1 + y2 - face_y)), (0, 0, 255), 3)
+    cv2.line(
+        img,
+        (int(x2), int(y2)),
+        (int(x2 + x1 - face_x), int(y2 + y1 - face_y)),
+        (0, 0, 255),
+        3,
+    )
+    cv2.line(
+        img,
+        (int(x1), int(y1)),
+        (int(x1 + x2 - face_x), int(y1 + y2 - face_y)),
+        (0, 0, 255),
+        3,
+    )
     # Draw pillars in blue
     cv2.line(img, (int(face_x), int(face_y)), (int(x3), int(y3)), (255, 0, 0), 2)
-    cv2.line(img, (int(x1), int(y1)), (int(x1 + x3 - face_x), int(y1 + y3 - face_y)), (255, 0, 0), 2)
-    cv2.line(img, (int(x2), int(y2)), (int(x2 + x3 - face_x), int(y2 + y3 - face_y)), (255, 0, 0), 2)
-    cv2.line(img, (int(x2 + x1 - face_x), int(y2 + y1 - face_y)),
-             (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)), (255, 0, 0), 2)
+    cv2.line(
+        img,
+        (int(x1), int(y1)),
+        (int(x1 + x3 - face_x), int(y1 + y3 - face_y)),
+        (255, 0, 0),
+        2,
+    )
+    cv2.line(
+        img,
+        (int(x2), int(y2)),
+        (int(x2 + x3 - face_x), int(y2 + y3 - face_y)),
+        (255, 0, 0),
+        2,
+    )
+    cv2.line(
+        img,
+        (int(x2 + x1 - face_x), int(y2 + y1 - face_y)),
+        (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)),
+        (255, 0, 0),
+        2,
+    )
     # Draw top in green
-    cv2.line(img, (int(x3 + x1 - face_x), int(y3 + y1 - face_y)),
-             (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)), (0, 255, 0), 2)
-    cv2.line(img, (int(x2 + x3 - face_x), int(y2 + y3 - face_y)),
-             (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)), (0, 255, 0), 2)
-    cv2.line(img, (int(x3), int(y3)), (int(x3 + x1 - face_x), int(y3 + y1 - face_y)), (0, 255, 0), 2)
-    cv2.line(img, (int(x3), int(y3)), (int(x3 + x2 - face_x), int(y3 + y2 - face_y)), (0, 255, 0), 2)
+    cv2.line(
+        img,
+        (int(x3 + x1 - face_x), int(y3 + y1 - face_y)),
+        (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)),
+        (0, 255, 0),
+        2,
+    )
+    cv2.line(
+        img,
+        (int(x2 + x3 - face_x), int(y2 + y3 - face_y)),
+        (int(x3 + x1 + x2 - 2 * face_x), int(y3 + y2 + y1 - 2 * face_y)),
+        (0, 255, 0),
+        2,
+    )
+    cv2.line(
+        img,
+        (int(x3), int(y3)),
+        (int(x3 + x1 - face_x), int(y3 + y1 - face_y)),
+        (0, 255, 0),
+        2,
+    )
+    cv2.line(
+        img,
+        (int(x3), int(y3)),
+        (int(x3 + x2 - face_x), int(y3 + y2 - face_y)),
+        (0, 255, 0),
+        2,
+    )
 
     return img
 
@@ -82,8 +133,18 @@ def visualize_headpose(img, yaw, pitch, roll, save_path=None, to_bgr=False):
     img = np.copy(img)
     if to_bgr:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    show_string = (f'y {yaw[0].item():.2f}, p {pitch[0].item():.2f}, ' + f'r {roll[0].item():.2f}')
-    cv2.putText(img, show_string, (30, img.shape[0] - 30), fontFace=1, fontScale=1, color=(0, 0, 255), thickness=2)
+    show_string = (
+        f"y {yaw[0].item():.2f}, p {pitch[0].item():.2f}, " + f"r {roll[0].item():.2f}"
+    )
+    cv2.putText(
+        img,
+        show_string,
+        (30, img.shape[0] - 30),
+        fontFace=1,
+        fontScale=1,
+        color=(0, 0, 255),
+        thickness=2,
+    )
     draw_pose_cube(img, yaw[0], pitch[0], roll[0], size=100)
     draw_axis(img, yaw[0], pitch[0], roll[0], tdx=50, tdy=50, size=100)
     # save img

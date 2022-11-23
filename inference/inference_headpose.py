@@ -28,7 +28,7 @@ def main(args):
         left = max(bbox[0] - thld, 0)
         right = min(bbox[2] + thld, w)
 
-        det_face = img[top:bottom, left:right, :].astype(np.float32) / 255.
+        det_face = img[top:bottom, left:right, :].astype(np.float32) / 255.0
 
         # resize
         det_face = cv2.resize(det_face, (224, 224), interpolation=cv2.INTER_LINEAR)
@@ -42,13 +42,17 @@ def main(args):
         visualize_headpose(img, yaw, pitch, roll, args.save_path)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Head pose estimation using the Hopenet network.')
-    parser.add_argument('--img_path', type=str, default='assets/test.jpg')
-    parser.add_argument('--save_path', type=str, default='assets/test_headpose.png')
-    parser.add_argument('--detection_model_name', type=str, default='retinaface_resnet50')
-    parser.add_argument('--headpose_model_name', type=str, default='hopenet')
-    parser.add_argument('--half', action='store_true')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Head pose estimation using the Hopenet network."
+    )
+    parser.add_argument("--img_path", type=str, default="assets/test.jpg")
+    parser.add_argument("--save_path", type=str, default="assets/test_headpose.png")
+    parser.add_argument(
+        "--detection_model_name", type=str, default="retinaface_resnet50"
+    )
+    parser.add_argument("--headpose_model_name", type=str, default="hopenet")
+    parser.add_argument("--half", action="store_true")
     args = parser.parse_args()
 
     main(args)

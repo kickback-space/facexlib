@@ -10,15 +10,20 @@ from facexlib.detection import init_detection_model
 
 
 def draw_and_save(image, bboxes_and_landmarks, save_path, order_type=1):
-    """Visualize results
-    """
+    """Visualize results"""
     if isinstance(image, Image.Image):
         image = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
     image = image.astype(np.float32)
     for b in bboxes_and_landmarks:
         # confidence
-        cv2.putText(image, '{:.4f}'.format(b[4]), (int(b[0]), int(b[1] + 12)), cv2.FONT_HERSHEY_DUPLEX, 0.5,
-                    (255, 255, 255))
+        cv2.putText(
+            image,
+            "{:.4f}".format(b[4]),
+            (int(b[0]), int(b[1] + 12)),
+            cv2.FONT_HERSHEY_DUPLEX,
+            0.5,
+            (255, 255, 255),
+        )
         # bounding boxes
         b = list(map(int, b))
         cv2.rectangle(image, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
@@ -39,28 +44,30 @@ def draw_and_save(image, bboxes_and_landmarks, save_path, order_type=1):
     cv2.imwrite(save_path, image)
 
 
-det_net = init_detection_model('retinaface_resnet50')
+det_net = init_detection_model("retinaface_resnet50")
 half = False
 
 det_net.cuda().eval()
 if half:
     det_net = det_net.half()
 
-img_list = sorted(glob.glob('../../BasicSR-private/datasets/ffhq/ffhq_512/*'))
+img_list = sorted(glob.glob("../../BasicSR-private/datasets/ffhq/ffhq_512/*"))
 
 
 def get_center_landmark(landmarks, center):
     center = np.array(center)
     center_dist = []
     for landmark in landmarks:
-        landmark_center = np.array([(landmark[0] + landmark[2]) / 2, (landmark[1] + landmark[3]) / 2])
+        landmark_center = np.array(
+            [(landmark[0] + landmark[2]) / 2, (landmark[1] + landmark[3]) / 2]
+        )
         dist = np.linalg.norm(landmark_center - center)
         center_dist.append(dist)
     center_idx = center_dist.index(min(center_dist))
     return landmarks[center_idx]
 
 
-pbar = tqdm(total=len(img_list), unit='image')
+pbar = tqdm(total=len(img_list), unit="image")
 save_np = []
 for idx, path in enumerate(img_list):
     img_name = os.path.basename(path)
@@ -73,4 +80,4 @@ for idx, path in enumerate(img_list):
             bboxes = [get_center_landmark(bboxes, (256, 256))]
         save_np.append(bboxes)
         # draw_and_save(img, bboxes, os.path.join('tmp', img_name), 1)
-np.save('ffhq_det_info.npy', save_np)
+np.save("ffhq_det_info.npy", save_np)

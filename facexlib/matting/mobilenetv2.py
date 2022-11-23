@@ -20,11 +20,19 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 def conv_bn(inp, oup, stride):
-    return nn.Sequential(nn.Conv2d(inp, oup, 3, stride, 1, bias=False), nn.BatchNorm2d(oup), nn.ReLU6(inplace=True))
+    return nn.Sequential(
+        nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
+        nn.BatchNorm2d(oup),
+        nn.ReLU6(inplace=True),
+    )
 
 
 def conv_1x1_bn(inp, oup):
-    return nn.Sequential(nn.Conv2d(inp, oup, 1, 1, 0, bias=False), nn.BatchNorm2d(oup), nn.ReLU6(inplace=True))
+    return nn.Sequential(
+        nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+        nn.BatchNorm2d(oup),
+        nn.ReLU6(inplace=True),
+    )
 
 
 # ------------------------------------------------------------------------------
@@ -33,7 +41,6 @@ def conv_1x1_bn(inp, oup):
 
 
 class InvertedResidual(nn.Module):
-
     def __init__(self, inp, oup, stride, expansion, dilation=1):
         super(InvertedResidual, self).__init__()
         self.stride = stride
@@ -45,7 +52,16 @@ class InvertedResidual(nn.Module):
         if expansion == 1:
             self.conv = nn.Sequential(
                 # dw
-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, dilation=dilation, bias=False),
+                nn.Conv2d(
+                    hidden_dim,
+                    hidden_dim,
+                    3,
+                    stride,
+                    1,
+                    groups=hidden_dim,
+                    dilation=dilation,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # pw-linear
@@ -59,7 +75,16 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # dw
-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, dilation=dilation, bias=False),
+                nn.Conv2d(
+                    hidden_dim,
+                    hidden_dim,
+                    3,
+                    stride,
+                    1,
+                    groups=hidden_dim,
+                    dilation=dilation,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # pw-linear
@@ -80,7 +105,6 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-
     def __init__(self, in_channels, alpha=1.0, expansion=6, num_classes=1000):
         super(MobileNetV2, self).__init__()
         self.in_channels = in_channels
@@ -100,7 +124,9 @@ class MobileNetV2(nn.Module):
 
         # building first layer
         input_channel = _make_divisible(input_channel * alpha, 8)
-        self.last_channel = _make_divisible(last_channel * alpha, 8) if alpha > 1.0 else last_channel
+        self.last_channel = (
+            _make_divisible(last_channel * alpha, 8) if alpha > 1.0 else last_channel
+        )
         self.features = [conv_bn(self.in_channels, input_channel, 2)]
 
         # building inverted residual blocks
@@ -108,9 +134,13 @@ class MobileNetV2(nn.Module):
             output_channel = _make_divisible(int(c * alpha), 8)
             for i in range(n):
                 if i == 0:
-                    self.features.append(InvertedResidual(input_channel, output_channel, s, expansion=t))
+                    self.features.append(
+                        InvertedResidual(input_channel, output_channel, s, expansion=t)
+                    )
                 else:
-                    self.features.append(InvertedResidual(input_channel, output_channel, 1, expansion=t))
+                    self.features.append(
+                        InvertedResidual(input_channel, output_channel, 1, expansion=t)
+                    )
                 input_channel = output_channel
 
         # building last several layers
@@ -164,15 +194,15 @@ class MobileNetV2(nn.Module):
         return x
 
     def _load_pretrained_model(self, pretrained_file):
-        pretrain_dict = torch.load(pretrained_file, map_location='cpu')
+        pretrain_dict = torch.load(pretrained_file, map_location="cpu")
         model_dict = {}
         state_dict = self.state_dict()
-        print('[MobileNetV2] Loading pretrained model...')
+        print("[MobileNetV2] Loading pretrained model...")
         for k, v in pretrain_dict.items():
             if k in state_dict:
                 model_dict[k] = v
             else:
-                print(k, 'is ignored')
+                print(k, "is ignored")
         state_dict.update(model_dict)
         self.load_state_dict(state_dict)
 
@@ -180,7 +210,7 @@ class MobileNetV2(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
                 if m.bias is not None:
                     m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):

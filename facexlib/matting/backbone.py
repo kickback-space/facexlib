@@ -6,8 +6,7 @@ from .mobilenetv2 import MobileNetV2
 
 
 class BaseBackbone(nn.Module):
-    """ Superclass of Replaceable Backbone Model for Semantic Estimation
-    """
+    """Superclass of Replaceable Backbone Model for Semantic Estimation"""
 
     def __init__(self, in_channels):
         super(BaseBackbone, self).__init__()
@@ -24,13 +23,14 @@ class BaseBackbone(nn.Module):
 
 
 class MobileNetV2Backbone(BaseBackbone):
-    """ MobileNetV2 Backbone
-    """
+    """MobileNetV2 Backbone"""
 
     def __init__(self, in_channels):
         super(MobileNetV2Backbone, self).__init__(in_channels)
 
-        self.model = MobileNetV2(self.in_channels, alpha=1.0, expansion=6, num_classes=None)
+        self.model = MobileNetV2(
+            self.in_channels, alpha=1.0, expansion=6, num_classes=None
+        )
         self.enc_channels = [16, 24, 32, 96, 1280]
 
     def forward(self, x):
@@ -71,9 +71,9 @@ class MobileNetV2Backbone(BaseBackbone):
 
     def load_pretrained_ckpt(self):
         # the pre-trained model is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
-        ckpt_path = './pretrained/mobilenetv2_human_seg.ckpt'
+        ckpt_path = "./pretrained/mobilenetv2_human_seg.ckpt"
         if not os.path.exists(ckpt_path):
-            print('cannot find the pretrained mobilenetv2 backbone')
+            print("cannot find the pretrained mobilenetv2 backbone")
             exit()
 
         ckpt = torch.load(ckpt_path)

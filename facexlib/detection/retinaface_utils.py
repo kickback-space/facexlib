@@ -301,27 +301,29 @@ def decode(loc, priors, variances):
     boxes[:, 2:] += boxes[:, :2]
     return boxes
 
+
 @numba.jit(nopython=True, parallel=True, fastmath=True)
 def fast_decode_landm(
     pre, priors, variances
 ):  # Function is compiled and runs in machine code
 
-
     left = priors[:, :2].T
     right = priors[:, 2:].T
     pre = pre.T
     landms = np.zeros_like(pre)
-#    tmp = (
-#        left + pre[:, :2] * variances[0] * right,
-#        left + pre[:, 2:4] * variances[0] * right,
-#        left + pre[:, 4:6] * variances[0] * right,
-#        left + pre[:, 6:8] * variances[0] * right,
-#        left + pre[:, 8:10] * variances[0] * right,
-#    )
+    #    tmp = (
+    #        left + pre[:, :2] * variances[0] * right,
+    #        left + pre[:, 2:4] * variances[0] * right,
+    #        left + pre[:, 4:6] * variances[0] * right,
+    #        left + pre[:, 6:8] * variances[0] * right,
+    #        left + pre[:, 8:10] * variances[0] * right,
+    #    )
     for i in range(5):
-        landms[2*i:2*(i+1), :] = left + pre[2*i:2*(i+1), :] * variances[0] * right
+        landms[2 * i : 2 * (i + 1), :] = (
+            left + pre[2 * i : 2 * (i + 1), :] * variances[0] * right
+        )
     landms = landms.T
-#    landms = np.concatenate(tmp, axis=1)
+    #    landms = np.concatenate(tmp, axis=1)
     return landms
 
 

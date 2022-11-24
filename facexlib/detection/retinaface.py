@@ -81,7 +81,14 @@ def generate_config(network_name):
 
 
 class RetinaFace(nn.Module):
-    def __init__(self, model_path, network_name="resnet50", half=False, phase="test", load_trt=True):
+    def __init__(
+        self,
+        model_path,
+        network_name="resnet50",
+        half=False,
+        phase="test",
+        load_trt=True,
+    ):
         super(RetinaFace, self).__init__()
         self.half_inference = half
         cfg = generate_config(network_name)
@@ -93,7 +100,9 @@ class RetinaFace(nn.Module):
         self.target_size, self.max_size = 1600, 2150
         self.resize, self.scale, self.scale1 = 1.0, None, None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.mean_tensor = torch.tensor([[[[104.0]], [[117.0]], [[123.0]]]]).to(self.device)
+        self.mean_tensor = torch.tensor([[[[104.0]], [[117.0]], [[123.0]]]]).to(
+            self.device
+        )
 
         self.reference = get_reference_facial_points(default_square=True)
         # Build network.
@@ -123,7 +132,7 @@ class RetinaFace(nn.Module):
         self.ClassHead = make_class_head(fpn_num=3, inchannels=cfg["out_channel"])
         self.BboxHead = make_bbox_head(fpn_num=3, inchannels=cfg["out_channel"])
         self.LandmarkHead = make_landmark_head(fpn_num=3, inchannels=cfg["out_channel"])
-        
+
         self.trt_retina = TRTModel(model_path, device=0) if load_trt else None
 
         self.priorbox = PriorBox(self.cfg, image_size=(120, 160))
@@ -155,8 +164,15 @@ class RetinaFace(nn.Module):
         ldm_regressions = torch.cat(tmp, dim=1)
 
         bbox_regressions = bbox_regressions[0]
-        bbox_regressions = torch.cat((priors[:, :2] + bbox_regressions[:, :2] * self.cfg["variance"][0] * priors[:, 2:],
-                           priors[:, 2:] * torch.exp(bbox_regressions[:, 2:] * self.cfg["variance"][1])), 1)
+        bbox_regressions = torch.cat(
+            (
+                priors[:, :2]
+                + bbox_regressions[:, :2] * self.cfg["variance"][0] * priors[:, 2:],
+                priors[:, 2:]
+                * torch.exp(bbox_regressions[:, 2:] * self.cfg["variance"][1]),
+            ),
+            1,
+        )
         bbox_regressions[:, :2] -= bbox_regressions[:, 2:] / 2
         bbox_regressions[:, 2:] += bbox_regressions[:, :2]
 
@@ -167,10 +183,18 @@ class RetinaFace(nn.Module):
         landms = torch.zeros_like(ldm_regressions)
 
         landms[:, :2] = left + ldm_regressions[:, :2] * self.cfg["variance"][0] * right
-        landms[:, 2:4] = left + ldm_regressions[:, 2:4] * self.cfg["variance"][0] * right
-        landms[:, 4:6] = left + ldm_regressions[:, 4:6] * self.cfg["variance"][0] * right
-        landms[:, 6:8] = left + ldm_regressions[:, 6:8] * self.cfg["variance"][0] * right
-        landms[:, 8:10] = left + ldm_regressions[:, 8:10] * self.cfg["variance"][0] * right
+        landms[:, 2:4] = (
+            left + ldm_regressions[:, 2:4] * self.cfg["variance"][0] * right
+        )
+        landms[:, 4:6] = (
+            left + ldm_regressions[:, 4:6] * self.cfg["variance"][0] * right
+        )
+        landms[:, 6:8] = (
+            left + ldm_regressions[:, 6:8] * self.cfg["variance"][0] * right
+        )
+        landms[:, 8:10] = (
+            left + ldm_regressions[:, 8:10] * self.cfg["variance"][0] * right
+        )
 
         bbox_regressions = bbox_regressions.unsqueeze(0)
         landms = landms.unsqueeze(0)
@@ -180,7 +204,8 @@ class RetinaFace(nn.Module):
             output = (
                 bbox_regressions,
                 F.softmax(classifications, dim=-1),
-                landms, priors
+                landms,
+                priors,
             )
         return output
 
@@ -243,7 +268,7 @@ class RetinaFace(nn.Module):
         image, self.resize = self.transform(image, use_origin_size)
         if self.half_inference:
             image = image.half()
-        t1 = time.time()
+        time.time()
         boxes, conf, landmarks, priors = self.__detect_faces(image)
         boxes = boxes[0]
         conf = conf[0]

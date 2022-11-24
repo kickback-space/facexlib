@@ -1,4 +1,3 @@
-import os
 import time
 import cv2
 import numpy as np
@@ -31,8 +30,6 @@ from facexlib.detection.retinaface_utils import (
     py_cpu_nms,
 )
 from facexlib.tensorrt.trt_model import TRTModel
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def generate_config(network_name):
@@ -84,9 +81,7 @@ def generate_config(network_name):
 
 
 class RetinaFace(nn.Module):
-    def __init__(
-        self, model_rootpath, network_name="resnet50", half=False, phase="test"
-    ):
+    def __init__(self, model_path, network_name="resnet50", half=False, phase="test", load_trt=True):
         super(RetinaFace, self).__init__()
         self.half_inference = half
         cfg = generate_config(network_name)
@@ -97,7 +92,8 @@ class RetinaFace(nn.Module):
         self.phase = phase
         self.target_size, self.max_size = 1600, 2150
         self.resize, self.scale, self.scale1 = 1.0, None, None
-        self.mean_tensor = torch.tensor([[[[104.0]], [[117.0]], [[123.0]]]]).to(device)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.mean_tensor = torch.tensor([[[[104.0]], [[117.0]], [[123.0]]]]).to(self.device)
 
         self.reference = get_reference_facial_points(default_square=True)
         # Build network.
@@ -127,20 +123,15 @@ class RetinaFace(nn.Module):
         self.ClassHead = make_class_head(fpn_num=3, inchannels=cfg["out_channel"])
         self.BboxHead = make_bbox_head(fpn_num=3, inchannels=cfg["out_channel"])
         self.LandmarkHead = make_landmark_head(fpn_num=3, inchannels=cfg["out_channel"])
+        
+        self.trt_retina = TRTModel(model_path, device=0) if load_trt else None
 
-        self.to(device)
-        self.eval()
-        if self.half_inference:
-            self.half()
-
-        #        self.ort_sess = ort.InferenceSession('retina_resnet50.onnx', providers=['CUDAExecutionProvider'])
-        self.trt_retina = TRTModel(
-            os.path.join(model_rootpath, "retina_resnet50_4090_160x120_fp16.trt")
-        )
         self.priorbox = PriorBox(self.cfg, image_size=(120, 160))
-        self.priors = self.priorbox.forward().numpy()  # .to(device)
+        self.priors = self.priorbox.forward().to(self.device)
 
     def forward(self, inputs):
+        priors = self.priorbox.forward().to(self.device)
+        inputs = inputs - self.mean_tensor
         out = self.body(inputs)
 
         if self.backbone == "mobilenet0.25" or self.backbone == "Resnet50":
@@ -163,19 +154,38 @@ class RetinaFace(nn.Module):
         tmp = [self.LandmarkHead[i](feature) for i, feature in enumerate(features)]
         ldm_regressions = torch.cat(tmp, dim=1)
 
+        bbox_regressions = bbox_regressions[0]
+        bbox_regressions = torch.cat((priors[:, :2] + bbox_regressions[:, :2] * self.cfg["variance"][0] * priors[:, 2:],
+                           priors[:, 2:] * torch.exp(bbox_regressions[:, 2:] * self.cfg["variance"][1])), 1)
+        bbox_regressions[:, :2] -= bbox_regressions[:, 2:] / 2
+        bbox_regressions[:, 2:] += bbox_regressions[:, :2]
+
+        ldm_regressions = ldm_regressions[0]
+
+        left = priors[:, :2]
+        right = priors[:, 2:]
+        landms = torch.zeros_like(ldm_regressions)
+
+        landms[:, :2] = left + ldm_regressions[:, :2] * self.cfg["variance"][0] * right
+        landms[:, 2:4] = left + ldm_regressions[:, 2:4] * self.cfg["variance"][0] * right
+        landms[:, 4:6] = left + ldm_regressions[:, 4:6] * self.cfg["variance"][0] * right
+        landms[:, 6:8] = left + ldm_regressions[:, 6:8] * self.cfg["variance"][0] * right
+        landms[:, 8:10] = left + ldm_regressions[:, 8:10] * self.cfg["variance"][0] * right
+
+        bbox_regressions = bbox_regressions.unsqueeze(0)
+        landms = landms.unsqueeze(0)
         if self.phase == "train":
-            output = (bbox_regressions, classifications, ldm_regressions)
+            output = (bbox_regressions, classifications, landms, priors)
         else:
             output = (
                 bbox_regressions,
                 F.softmax(classifications, dim=-1),
-                ldm_regressions,
+                landms, priors
             )
         return output
 
     def __detect_faces(self, inputs):
         # get scale
-        time.time()
         height, width = inputs.shape[2:]
         self.scale = np.array([width, height, width, height], dtype=np.float32)
         tmp = [
@@ -192,8 +202,8 @@ class RetinaFace(nn.Module):
         ]
         self.scale1 = np.array(tmp, dtype=np.float32)
         # forward
-        loc, landmarks, conf = self.trt_retina.infer(inputs)
-        return loc, conf, landmarks, self.priors
+        loc, landmarks, conf, priors = self.trt_retina.infer(inputs)
+        return loc, conf, landmarks, priors
 
     # single image detection
     def transform(self, image, use_origin_size):
@@ -219,7 +229,6 @@ class RetinaFace(nn.Module):
             )
 
         # convert to torch.tensor format
-        image -= (104, 117, 123)
         image = image.transpose(2, 0, 1)[None]
 
         return image, resize
@@ -234,13 +243,13 @@ class RetinaFace(nn.Module):
         image, self.resize = self.transform(image, use_origin_size)
         if self.half_inference:
             image = image.half()
-        # image = image - self.mean_tensor
-        time.time()
-        loc, conf, landmarks, priors = self.__detect_faces(image)
-        boxes = decode(loc[0], priors, self.cfg["variance"])
+        t1 = time.time()
+        boxes, conf, landmarks, priors = self.__detect_faces(image)
+        boxes = boxes[0]
+        conf = conf[0]
+        landmarks = landmarks[0]
         boxes = boxes * self.scale / self.resize
-        scores = conf[0][:, 1]
-        landmarks = fast_decode_landm(landmarks[0], priors, self.cfg["variance"])
+        scores = conf[:, 1]
         landmarks = landmarks * self.scale1 / self.resize
         # ignore low scores
         inds = np.where(scores > conf_threshold)[0]
@@ -353,7 +362,7 @@ class RetinaFace(nn.Module):
         """
         # self.t['forward_pass'].tic()
         frames, self.resize = self.batched_transform(frames, use_origin_size)
-        frames = frames.to(device)
+        frames = frames.to(self.device)
         frames = frames - self.mean_tensor
 
         b_loc, b_conf, b_landmarks, priors = self.__detect_faces(frames)
